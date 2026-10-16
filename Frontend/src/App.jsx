@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import AuthForm from './components/AuthForm';
 import Dashboard from './components/Dashboard';
+import PostsDashboard from './components/PostsDashboard';
+
 
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -16,11 +18,12 @@ function App() {
   return (
     <>
       {currentUser ? (
-        <Dashboard user={currentUser} onLogout={handleLogout} />
-      ) : (
-        <AuthForm onLoginSuccess={handleLoginSuccess} />
-      )}
+  <PostsDashboard />
+) : (
+  <AuthForm onLoginSuccess={handleLoginSuccess} />
+)}
     </>
+
   );
 }
 
