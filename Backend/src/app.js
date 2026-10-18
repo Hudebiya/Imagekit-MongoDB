@@ -40,7 +40,6 @@ app.post('/posts', upload.single("image"), async (req, res) => {
 
         const imgBuffer = req.file.buffer;
         const result = await uploadFile(imgBuffer);
-        console.log("UPLOAD RESULT:", result);
 
         const post = await postModel.create({
             title: data.title,
@@ -72,18 +71,28 @@ app.delete("/posts/:id", async(req, res) => {
     })
 })
 
-app.delete("/posts", async (req, res) => {
-  await postModel.deleteMany({});
-  res.status(200).json({ message: "All posts deleted" });
-});
+app.patch("/posts/:id", upload.single("image"), async (req, res) => {
+      console.log("PATCH HIT:", req.params.id, req.body, req.file?.originalname);
+    try {
+        const update = {
+            title: req.body.title,
+            desc: req.body.desc,
+        };
 
-app.patch("/posts/:id", async(req, res) => {
-    const id = req.params.id
-    const desc = req.body.desc
-    await postModel.findByIdAndUpdate({ _id: id }, { desc })
-    res.status(200).json({
-        message: "Post updated Successfully"
-    })
-})
+        if (req.file) {
+            const result = await uploadFile(req.file.buffer);
+            update.image = result.url;
+        }
+
+        await postModel.findByIdAndUpdate(req.params.id, update);
+
+        res.status(200).json({
+            message: "Post updated Successfully"
+        });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ message: error.message });
+    }
+});
 
 export default app
