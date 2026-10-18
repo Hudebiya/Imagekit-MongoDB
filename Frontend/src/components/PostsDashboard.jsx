@@ -1,194 +1,174 @@
-
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 const API = "http://localhost:4000/posts";
 
-const CreatePost = () => {
+const PostsDashboard = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const post = location.state?.post;
 
-  const [desc, setDesc] = useState("");
-  const [image, setImage] = useState(null);
-  const [preview, setPreview] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
-    setDesc(post?.desc || "");
-    setPreview(post?.image || "");
-    setImage(null);
-    setError("");
-  }, [post]);
+    const fetchPosts = async () => {
+      try {
+        setError("");
+        const res = await axios.get(API);
+        setPosts([...(res.data.post || [])].reverse());
+      } catch (err) {
+        console.error(err);
+        setError("Could not load posts. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // Show preview of newly selected image
-  useEffect(() => {
-    if (!image) return;
+    fetchPosts();
+  }, []);
 
-    const imageUrl = URL.createObjectURL(image);
-    setPreview(imageUrl);
-
-    return () => URL.revokeObjectURL(imageUrl);
-  }, [image]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    const data = new FormData();
-    data.append("desc", desc.trim());
-
-    if (image) {
-      data.append("image", image);
-    }
+  const deleteHandler = async (id) => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this post?"
+    );
+    if (!confirmed) return;
 
     try {
-      if (post) {
-        await axios.put(`${API}/${post._id}`, data);
-      } else {
-        if (!image) {
-          setError("Please select an image.");
-          setLoading(false);
-          return;
-        }
-
-        await axios.post(API, data);
-      }
-
-      navigate("/feed");
+      setDeletingId(id);
+      await axios.delete(`${API}/${id}`);
+      setPosts((currentPosts) =>
+        currentPosts.filter((post) => post._id !== id)
+      );
     } catch (err) {
       console.error(err);
-      setError(
-        err.response?.data?.message || "Something went wrong. Try again."
-      );
+      alert("Could not delete the post. Please try again.");
     } finally {
-      setLoading(false);
+      setDeletingId(null);
     }
   };
 
+  const editHandler = (post) => {
+    navigate("/edit", { state: { post } });
+  };
+
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-10 text-white">
-      <div className="mx-auto max-w-xl">
-        <button
-          type="button"
-          onClick={() => navigate("/feed")}
-          className="mb-6 text-sm text-slate-400 transition hover:text-white"
-        >
-          ← Back to feed
-        </button>
+    <main className="min-h-screen bg-slate-950 px-4 py-10 text-white sm:px-6">
+      <div className="mx-auto max-w-6xl">
+        <header className="mb-10 flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
+          <div>
+            <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-indigo-400">
+              Your space
+            </p>
 
-        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl sm:p-8">
-          <h1 className="text-3xl font-bold tracking-tight">
-            {post ? "Edit your post" : "Create a post"}
-          </h1>
+            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
+              My Feed<span className="text-indigo-500">.</span>
+            </h1>
 
-          <p className="mt-2 mb-7 text-sm text-slate-400">
-            {post
-              ? "Update your description or choose a new image."
-              : "Share an image with your feed."}
+            <p className="mt-3 text-slate-400">
+              All your posts in one place.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => navigate("/create")}
+            className="rounded-xl bg-indigo-600 px-6 py-3 font-semibold transition hover:bg-indigo-500"
+          >
+            + Create post
+          </button>
+        </header>
+
+        {loading ? (
+          <p className="py-16 text-center text-slate-400">
+            Loading posts...
           </p>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label
-                htmlFor="image"
-                className="mb-2 block text-sm font-medium text-slate-200"
-              >
-                Post image {post ? "(optional)" : ""}
-              </label>
-
-              <label
-                htmlFor="image"
-                className="flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-700 bg-slate-950 p-5 text-center transition hover:border-indigo-400"
-              >
-                <span className="text-2xl">↑</span>
-                <span className="mt-2 text-sm font-medium">
-                  Click to choose an image
-                </span>
-                <span className="mt-1 text-xs text-slate-500">
-                  PNG, JPG or WEBP
-                </span>
-              </label>
-
-              <input
-                id="image"
-                type="file"
-                name="image"
-                accept="image/*"
-                className="sr-only"
-                onChange={(e) => {
-                  setImage(e.target.files?.[0] || null);
-                }}
-              />
-
-              {preview && (
-                <div className="mt-4">
-                  <img
-                    src={preview}
-                    alt="Post preview"
-                    className="max-h-72 w-full rounded-xl object-contain bg-slate-950"
-                  />
-                  {image && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setImage(null);
-                        setPreview(post?.image || "");
-                      }}
-                      className="mt-2 text-sm text-rose-400 hover:text-rose-300"
-                    >
-                      Remove selected image
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label
-                htmlFor="desc"
-                className="mb-2 block text-sm font-medium text-slate-200"
-              >
-                Description
-              </label>
-
-              <textarea
-                id="desc"
-                name="desc"
-                rows={4}
-                value={desc}
-                onChange={(e) => setDesc(e.target.value)}
-                placeholder="What's on your mind?"
-                required
-                className="w-full resize-y rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition placeholder:text-slate-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
-              />
-            </div>
-
-            {error && (
-              <p role="alert" className="text-sm text-rose-400">
-                {error}
-              </p>
-            )}
+        ) : error ? (
+          <div className="rounded-xl border border-rose-900 bg-rose-950/30 p-6 text-center">
+            <p className="text-rose-300">{error}</p>
 
             <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => window.location.reload()}
+              className="mt-4 rounded-lg bg-slate-800 px-4 py-2 hover:bg-slate-700"
             >
-              {loading
-                ? "Please wait..."
-                : post
-                  ? "Save changes"
-                  : "Publish post"}
+              Try again
             </button>
-          </form>
-        </div>
+          </div>
+        ) : posts.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-700 px-5 py-20 text-center">
+            <div className="text-4xl">✦</div>
+
+            <h2 className="mt-4 text-xl font-semibold">No posts yet</h2>
+
+            <p className="mt-2 text-slate-400">
+              Create your first post to get started.
+            </p>
+
+            <button
+              onClick={() => navigate("/create")}
+              className="mt-6 rounded-xl bg-indigo-600 px-5 py-3 font-medium hover:bg-indigo-500"
+            >
+              Create your first post
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {posts.map((post) => (
+              <article
+                key={post._id}
+                className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 transition duration-200 hover:-translate-y-1 hover:border-slate-700 hover:shadow-xl hover:shadow-black/20"
+              >
+                <div className="aspect-[4/3] overflow-hidden bg-slate-800">
+                  {post.image ? (
+                    <img
+                      src={post.image}
+                      alt={post.title || post.desc}
+                      loading="lazy"
+                      className="h-full w-full object-cover transition duration-300 hover:scale-105"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-sm text-slate-500">
+                      No image
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-5">
+                  {post.title && (
+                    <h2 className="mb-2 text-lg font-semibold">
+                      {post.title}
+                    </h2>
+                  )}
+
+                  <p className="whitespace-pre-wrap break-words leading-7 text-slate-200">
+                    {post.desc}
+                  </p>
+
+                  <div className="mt-5 flex gap-3 border-t border-slate-800 pt-4">
+                    <button
+                      onClick={() => editHandler(post)}
+                      className="flex-1 rounded-lg bg-indigo-600/15 px-4 py-2.5 text-sm font-semibold text-indigo-300 transition hover:bg-indigo-600 hover:text-white"
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      onClick={() => deleteHandler(post._id)}
+                      disabled={deletingId === post._id}
+                      className="flex-1 rounded-lg bg-rose-500/10 px-4 py-2.5 text-sm font-semibold text-rose-400 transition hover:bg-rose-600 hover:text-white disabled:opacity-50"
+                    >
+                      {deletingId === post._id ? "Deleting..." : "Delete"}
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </div>
-    </div>
+    </main>
   );
 };
 
-export default CreatePost;
+export default PostsDashboard;

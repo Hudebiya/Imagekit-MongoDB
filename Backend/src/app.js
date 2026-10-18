@@ -7,7 +7,7 @@ import cors from "cors";
 const app = express();
 
 app.use(cors({
-  origin: "http://localhost:5173"
+  origin: "http://localhost:5173" 
 }));
 
 app.use(express.json());
@@ -20,7 +20,7 @@ app.get('/', (req, res) => {
 })
 
 app.get('/posts', async(req, res) => {
-    const post = await postModel.find()
+    const post = await postModel.find().sort({ _id: -1 })
     res.status(200).json({
         message: "Posts fetched sucessfully",
         post
@@ -40,6 +40,7 @@ app.post('/posts', upload.single("image"), async (req, res) => {
 
         const imgBuffer = req.file.buffer;
         const result = await uploadFile(imgBuffer);
+        console.log("UPLOAD RESULT:", result);
 
         const post = await postModel.create({
             title: data.title,
@@ -70,6 +71,11 @@ app.delete("/posts/:id", async(req, res) => {
         message: "Post deleted Successfully"
     })
 })
+
+app.delete("/posts", async (req, res) => {
+  await postModel.deleteMany({});
+  res.status(200).json({ message: "All posts deleted" });
+});
 
 app.patch("/posts/:id", async(req, res) => {
     const id = req.params.id
